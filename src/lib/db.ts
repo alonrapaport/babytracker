@@ -1,16 +1,21 @@
 import { supabase } from './supabase';
+import { isDemo } from './demo';
+import { demoApi, demoBabies, demoProfile } from './demoStore';
 import type { Baby, Entry, EntryData, EntryType, Profile, Reminder } from './types';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
+  if (isDemo) return demoProfile;
   const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   return (data as Profile) ?? null;
 }
 
 export async function updateProfile(userId: string, patch: Partial<Profile>) {
+  if (isDemo) return;
   await supabase.from('profiles').update(patch).eq('id', userId);
 }
 
 export async function listBabies(): Promise<Baby[]> {
+  if (isDemo) return demoBabies.slice();
   const { data } = await supabase.from('babies').select('*').order('created_at', { ascending: true });
   return (data as Baby[]) ?? [];
 }
@@ -21,6 +26,7 @@ export async function createBaby(input: {
   sex: string | null;
   photo_path?: string | null;
 }): Promise<Baby | null> {
+  if (isDemo) return demoApi.createBaby(input);
   const { data: userRes } = await supabase.auth.getUser();
   const owner = userRes.user?.id;
   const { data, error } = await supabase
@@ -36,14 +42,17 @@ export async function createBaby(input: {
 }
 
 export async function updateBaby(id: string, patch: Partial<Baby>) {
+  if (isDemo) return;
   await supabase.from('babies').update(patch).eq('id', id);
 }
 
 export async function deleteBaby(id: string) {
+  if (isDemo) return;
   await supabase.from('babies').delete().eq('id', id);
 }
 
 export async function listEntries(babyId: string): Promise<Entry[]> {
+  if (isDemo) return demoApi.listEntries();
   const { data } = await supabase
     .from('entries')
     .select('*')
@@ -59,6 +68,7 @@ export async function createEntry(input: {
   end_time?: string | null;
   data?: EntryData;
 }): Promise<Entry | null> {
+  if (isDemo) return demoApi.createEntry(input);
   const { data, error } = await supabase
     .from('entries')
     .insert({ data: {}, end_time: null, ...input })
@@ -72,19 +82,23 @@ export async function createEntry(input: {
 }
 
 export async function updateEntry(id: string, patch: Partial<Entry>) {
+  if (isDemo) return demoApi.updateEntry(id, patch);
   await supabase.from('entries').update(patch).eq('id', id);
 }
 
 export async function deleteEntry(id: string) {
+  if (isDemo) return demoApi.deleteEntry(id);
   await supabase.from('entries').delete().eq('id', id);
 }
 
 export async function listReminders(babyId: string): Promise<Reminder[]> {
+  if (isDemo) return [];
   const { data } = await supabase.from('reminders').select('*').eq('baby_id', babyId);
   return (data as Reminder[]) ?? [];
 }
 
 export async function upsertReminder(r: Partial<Reminder> & { baby_id: string }) {
+  if (isDemo) return;
   if (r.id) {
     await supabase.from('reminders').update(r).eq('id', r.id);
   } else {
@@ -94,6 +108,7 @@ export async function upsertReminder(r: Partial<Reminder> & { baby_id: string })
 
 // Subscribe to live entry changes for one baby. Returns an unsubscribe fn.
 export function subscribeEntries(babyId: string, onChange: () => void): () => void {
+  if (isDemo) return demoApi.subscribe(onChange);
   const channel = supabase
     .channel(`entries:${babyId}`)
     .on(
@@ -110,6 +125,7 @@ export function subscribeEntries(babyId: string, onChange: () => void): () => vo
 // --- Photos -----------------------------------------------------------------
 
 export async function uploadPhoto(babyId: string, dataUrl: string): Promise<string | null> {
+  if (isDemo) return null;
   try {
     const [meta, b64] = dataUrl.split(',');
     const contentType = /data:(.*?);/.exec(meta)?.[1] || 'image/jpeg';

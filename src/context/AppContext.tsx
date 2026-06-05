@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { isDemo } from '../lib/demo';
 import * as db from '../lib/db';
 import type { Baby, Entry, Profile, Units } from '../lib/types';
 import { useI18n } from '../i18n';
@@ -45,6 +46,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // --- auth bootstrap ---
   useEffect(() => {
+    if (isDemo) {
+      // synthetic session so the app proceeds straight to the activity screen
+      setSession({ user: { id: 'demo-user' } } as unknown as Session);
+      setLoadingAuth(false);
+      return;
+    }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoadingAuth(false);

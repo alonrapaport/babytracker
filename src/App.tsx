@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useApp } from './context/AppContext';
 import { useI18n } from './i18n';
 import { isConfigured } from './lib/supabase';
+import { isDemo } from './lib/demo';
 import TabBar from './components/TabBar';
 import AuthScreen from './screens/Auth';
 import Onboarding from './screens/Onboarding';
@@ -26,7 +27,7 @@ export default function App() {
   const { session, loadingAuth, babies } = useApp();
   const location = useLocation();
 
-  if (!isConfigured) {
+  if (!isConfigured && !isDemo) {
     return (
       <Center>
         <Box>

@@ -3,6 +3,7 @@ dist
 dist-ssr
 *.local
 .env
+*.tsbuildinfo
 .DS_Store
 android/app/build
 android/build
