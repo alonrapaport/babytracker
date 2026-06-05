@@ -22,8 +22,29 @@ export function runningSleep(entries: Entry[]): Entry | null {
   return entries.find((e) => e.type === 'sleep' && !e.end_time) ?? null;
 }
 
+// Any in-progress timer entry (sleep / breastfeed / pump) for a group: end_time is null.
+export function runningEntry(entries: Entry[], group: ActivityGroupKey): Entry | null {
+  const types = groupTypes[group];
+  return entries.find((e) => types.includes(e.type) && isTimer(e.type) && !e.end_time) ?? null;
+}
+
+function isTimer(t: EntryType): boolean {
+  return t === 'sleep' || t === 'breastfeed' || t === 'pump';
+}
+
+// Live elapsed seconds of a running breastfeed/pump from its persisted side state.
+function feedElapsedSec(e: Entry, now: Date): number {
+  const banked = ((e.data.leftSec as number) || 0) + ((e.data.rightSec as number) || 0);
+  const runStart = e.data.runStart as string | undefined;
+  const active = e.data.runningSide && runStart ? (now.getTime() - new Date(runStart).getTime()) / 1000 : 0;
+  return banked + Math.max(0, active);
+}
+
 export function entryDurationSec(e: Entry): number {
   if (e.type === 'breastfeed' || e.type === 'pump') {
+    if (e.end_time) {
+      return Math.max(0, (new Date(e.end_time).getTime() - new Date(e.start_time).getTime()) / 1000);
+    }
     return ((e.data.leftSec as number) || 0) + ((e.data.rightSec as number) || 0);
   }
   if (e.end_time) {
@@ -43,10 +64,12 @@ export function entrySummary(e: Entry, lang: Lang, t: (k: keyof Dict, v?: any) =
       return `${time} – ${timeHHMM(new Date(e.end_time))}  ·  ${fmtDuration(dur, lang)}`;
     }
     case 'breastfeed': {
+      if (!e.end_time) return `${time}  ${t('feeding')}`;
       const side = e.data.lastSide ? ` (${e.data.lastSide === 'left' ? t('left') : t('right')})` : '';
       return `${time}  ${fmtDuration(dur, lang)}${side}`;
     }
     case 'pump':
+      if (!e.end_time) return `${time}  ${t('pumping')}`;
       return `${time}  ${fmtDuration(dur, lang)}`;
     case 'bottle':
       return `${time}  ${e.data.amount ?? ''}${e.data.unit ?? ''}`;
@@ -90,6 +113,13 @@ export function groupStatus(
       return { text: `${t('wokeUp')} · ${timeAgo(new Date(last.end_time!), lang, now)}`, active: false };
     }
     return null;
+  }
+  if (group === 'feed' || group === 'pump') {
+    const run = runningEntry(entries, group);
+    if (run) {
+      const label = run.type === 'pump' ? t('pumping') : t('feeding');
+      return { text: `${label} · ${fmtDuration(feedElapsedSec(run, now), lang)}`, active: true };
+    }
   }
   const last = list.slice().sort(byStartDesc)[0];
   if (!last) return null;

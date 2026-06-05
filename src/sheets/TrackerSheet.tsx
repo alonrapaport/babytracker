@@ -45,6 +45,11 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // id of the entry being edited; set as soon as a timer is started so updates target it
+  const [entryId, setEntryId] = useState<string | null>(entry?.id ?? null);
+  // whether the user manually edited the breastfeed/pump end time (decouples it from the stopwatch sum)
+  const [endTouched, setEndTouched] = useState(false);
+
   // type-specific
   const [data, setData] = useState<Record<string, any>>({});
   // breastfeed/pump per-side stopwatch (seconds accumulated + running side)
@@ -58,7 +63,10 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
   // initialize from entry / fresh
   useEffect(() => {
     if (!open) return;
+    // An existing completed feed/pump keeps its stored end unless the user re-runs the stopwatch.
+    setEndTouched(!!entry?.end_time);
     if (entry) {
+      setEntryId(entry.id);
       setStart(new Date(entry.start_time));
       setEnd(entry.end_time ? new Date(entry.end_time) : null);
       const d = { ...(entry.data || {}) } as Record<string, any>;
@@ -66,14 +74,18 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
       setLeftSec((d.leftSec as number) || 0);
       setRightSec((d.rightSec as number) || 0);
       setData(d);
-      // resume a running sleep timer
+      // resume a running timer (sleep / breastfeed / pump)
       if (entry.type === 'sleep' && !entry.end_time) {
         setRunning('sleep');
         runStartRef.current = new Date(entry.start_time).getTime();
+      } else if ((entry.type === 'breastfeed' || entry.type === 'pump') && !entry.end_time && d.runningSide) {
+        setRunning(d.runningSide as 'left' | 'right');
+        runStartRef.current = d.runStart ? new Date(d.runStart as string).getTime() : Date.now();
       } else {
         setRunning(null);
       }
     } else {
+      setEntryId(null);
       setStart(new Date());
       setEnd(null);
       setNotes('');
@@ -91,20 +103,77 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
   const liveRight = rightSec + (running === 'right' ? (now.getTime() - runStartRef.current) / 1000 : 0);
   const sleepElapsed = running === 'sleep' ? (now.getTime() - runStartRef.current) / 1000 : 0;
 
-  function toggleSide(side: 'left' | 'right') {
+  async function toggleSide(side: 'left' | 'right') {
+    let newLeft = leftSec;
+    let newRight = rightSec;
+    let newRunning: null | 'left' | 'right';
+    let newRunStart = runStartRef.current;
     if (running === side) {
       // stop this side, bank the seconds
       const add = (now.getTime() - runStartRef.current) / 1000;
-      if (side === 'left') setLeftSec((s) => s + add);
-      else setRightSec((s) => s + add);
-      setRunning(null);
+      if (side === 'left') newLeft = leftSec + add;
+      else newRight = rightSec + add;
+      newRunning = null;
     } else {
       // bank the other side if it was running
-      if (running === 'left') setLeftSec((s) => s + (now.getTime() - runStartRef.current) / 1000);
-      if (running === 'right') setRightSec((s) => s + (now.getTime() - runStartRef.current) / 1000);
-      runStartRef.current = now.getTime();
-      setRunning(side);
+      if (running === 'left') newLeft = leftSec + (now.getTime() - runStartRef.current) / 1000;
+      if (running === 'right') newRight = rightSec + (now.getTime() - runStartRef.current) / 1000;
+      newRunStart = now.getTime();
+      newRunning = side;
     }
+    setLeftSec(newLeft);
+    setRightSec(newRight);
+    runStartRef.current = newRunStart;
+    setRunning(newRunning);
+    // Using the stopwatch makes the end follow the running total again (until manually edited / finalized).
+    setEnd(null);
+    setEndTouched(false);
+    // Persist immediately so the timer survives closing the sheet / refresh and shows on the card.
+    await persistFeed(newLeft, newRight, newRunning, newRunStart);
+  }
+
+  // Create-or-update the in-progress breastfeed/pump entry (end_time stays null until finalized via Save).
+  async function persistFeed(
+    l: number,
+    r: number,
+    side: null | 'left' | 'right',
+    runStart: number
+  ) {
+    if (!activeBaby) return;
+    const payload: Record<string, any> = {
+      ...data,
+      notes,
+      leftSec: Math.round(l),
+      rightSec: Math.round(r),
+      runningSide: side,
+      runStart: side ? new Date(runStart).toISOString() : null,
+    };
+    if (side) payload.lastSide = side;
+    if (entryId) {
+      await updateEntry(entryId, { start_time: start.toISOString(), end_time: null, data: payload });
+    } else {
+      const e = await createEntry({
+        baby_id: activeBaby.id,
+        type,
+        start_time: start.toISOString(),
+        end_time: null,
+        data: payload,
+      });
+      if (e) setEntryId(e.id);
+    }
+    onSaved();
+  }
+
+  // --- Sleep timer start/end editing while running ---
+  function onSleepStartChange(d: Date) {
+    const clamped = d.getTime() > Date.now() ? new Date() : d;
+    setStart(clamped);
+    if (running === 'sleep') runStartRef.current = clamped.getTime();
+  }
+
+  function onSleepEndChange(d: Date) {
+    setEnd(d);
+    if (running === 'sleep') setRunning(null); // a chosen end stops the live counter
   }
 
   // --- Sleep timer: persists immediately so it shows on the card ---
@@ -133,7 +202,10 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
       return;
     }
     setBusy(true);
-    await updateEntry(entry.id, { end_time: new Date().toISOString() });
+    await updateEntry(entry.id, {
+      start_time: start.toISOString(),
+      end_time: new Date().toISOString(),
+    });
     setBusy(false);
     onSaved();
     onClose();
@@ -151,21 +223,20 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
     if (photo_path) payload.photo_path = photo_path;
     let endTime = end;
 
-    if (type === 'breastfeed') {
+    if (type === 'breastfeed' || type === 'pump') {
       const l = Math.round(liveLeft);
       const r = Math.round(liveRight);
       payload.leftSec = l;
       payload.rightSec = r;
-      payload.lastSide = running ?? data.lastSide;
-      endTime = new Date(start.getTime() + (l + r) * 1000);
-    }
-    if (type === 'pump') {
-      payload.leftSec = Math.round(liveLeft);
-      payload.rightSec = Math.round(liveRight);
+      payload.runningSide = null; // finalize: no longer counting
+      payload.runStart = null;
+      if (type === 'breastfeed') payload.lastSide = running ?? data.lastSide;
+      // user-chosen end wins; otherwise derive from the stopwatch total
+      endTime = endTouched && end ? end : new Date(start.getTime() + (l + r) * 1000);
     }
 
-    if (entry) {
-      await updateEntry(entry.id, {
+    if (entryId) {
+      await updateEntry(entryId, {
         start_time: start.toISOString(),
         end_time: endTime ? endTime.toISOString() : null,
         data: payload,
@@ -185,9 +256,9 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
   }
 
   async function remove() {
-    if (!entry) return;
+    if (!entryId) return;
     setBusy(true);
-    await deleteEntry(entry.id);
+    await deleteEntry(entryId);
     setBusy(false);
     onSaved();
     onClose();
@@ -202,14 +273,19 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
       onClose={onClose}
       title={title}
       color={color}
-      onSave={type === 'sleep' && running === 'sleep' ? undefined : save}
+      onSave={save}
       saveDisabled={busy}
     >
       {/* ---- Timer area for sleep ---- */}
       {type === 'sleep' && (
         <Stack alignItems="center" spacing={2} sx={{ py: 3 }}>
           <Typography color="text.secondary">{t('totalTime')}</Typography>
-          <BigTime seconds={running === 'sleep' ? sleepElapsed : end ? (end.getTime() - start.getTime()) / 1000 : 0} />
+          <BigTime
+            seconds={Math.max(
+              0,
+              running === 'sleep' ? sleepElapsed : end ? (end.getTime() - start.getTime()) / 1000 : 0
+            )}
+          />
           {running === 'sleep' ? (
             <Button
               variant="contained"
@@ -252,11 +328,23 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
 
       {/* ---- Common time rows ---- */}
       {type !== 'sleep' && <TimeRow label={t('startTime')} value={start} onChange={setStart} />}
-      {type === 'sleep' && !running && (
+      {/* Sleep: start & end editable even while the timer runs (editing end stops it). */}
+      {type === 'sleep' && (
         <>
-          <TimeRow label={t('startTime')} value={start} onChange={setStart} />
-          <TimeRow label={t('endTime')} value={end ?? start} onChange={setEnd} />
+          <TimeRow label={t('startTime')} value={start} onChange={onSleepStartChange} />
+          <TimeRow label={t('endTime')} value={end ?? start} onChange={onSleepEndChange} />
         </>
+      )}
+      {/* Breastfeed/Pump: end time decoupled from the stopwatch sum, editable. */}
+      {(type === 'breastfeed' || type === 'pump') && (
+        <TimeRow
+          label={t('endTime')}
+          value={end ?? new Date(start.getTime() + (Math.round(liveLeft) + Math.round(liveRight)) * 1000)}
+          onChange={(d) => {
+            setEnd(d);
+            setEndTouched(true);
+          }}
+        />
       )}
 
       {/* ---- Type-specific bodies ---- */}
@@ -347,25 +435,21 @@ export default function TrackerSheet({ open, type, entry, onClose, onSaved }: Pr
         <TextField label={t('name')} value={data.name || ''} onChange={(e) => set('name', e.target.value)} fullWidth sx={{ mt: 2 }} />
       )}
 
-      {/* ---- Notes + photo (not while a sleep timer is mid-run) ---- */}
-      {!(type === 'sleep' && running === 'sleep') && (
-        <>
-          <NotesField value={notes} onChange={setNotes} placeholder={t('notes')} />
-          <Box sx={{ mt: 2 }}>
-            <PhotoField
-              dataUrl={photoData}
-              existingPath={data.photo_path}
-              onPick={setPhotoData}
-              onClear={() => {
-                setPhotoData(null);
-                set('photo_path', null);
-              }}
-            />
-          </Box>
-        </>
-      )}
+      {/* ---- Notes + photo ---- */}
+      <NotesField value={notes} onChange={setNotes} placeholder={t('notes')} />
+      <Box sx={{ mt: 2 }}>
+        <PhotoField
+          dataUrl={photoData}
+          existingPath={data.photo_path}
+          onPick={setPhotoData}
+          onClear={() => {
+            setPhotoData(null);
+            set('photo_path', null);
+          }}
+        />
+      </Box>
 
-      {entry && (
+      {entryId && (
         <Box sx={{ textAlign: 'center', mt: 4 }}>
           <Button color="secondary" onClick={remove} sx={{ color: '#E8632A' }}>
             {t('delete')}

@@ -96,6 +96,8 @@ const he: Dict = {
   stopTimer: 'עצירת טיימר',
   sleeping: 'ישנ/ה',
   wokeUp: 'התעורר/ה',
+  feeding: 'מאכיל/ה',
+  pumping: 'שואב/ת',
   awakeFor: 'ער/ה {dur}',
   addRoutine: 'הוספת שגרה',
   routines: 'שגרות',

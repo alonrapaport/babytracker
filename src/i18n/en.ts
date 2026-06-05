@@ -106,6 +106,8 @@ const en = {
   stopTimer: 'Stop Timer',
   sleeping: 'Sleeping',
   wokeUp: 'Woke up',
+  feeding: 'Feeding',
+  pumping: 'Pumping',
   awakeFor: 'Awake for {dur}',
   // routine
   addRoutine: 'Add Routine',

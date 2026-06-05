@@ -9,7 +9,7 @@ import type { GroupDef } from '../data/activities';
 import { useI18n } from '../i18n';
 import { useApp } from '../context/AppContext';
 import { useNow } from '../hooks/useNow';
-import { entriesForGroup, groupStatus, entrySummary, byStartDesc, runningSleep } from '../lib/entryHelpers';
+import { entriesForGroup, groupStatus, entrySummary, byStartDesc, runningEntry } from '../lib/entryHelpers';
 import type { Entry } from '../lib/types';
 
 export default function ActivityCard({
@@ -28,7 +28,7 @@ export default function ActivityCard({
 
   const list = entriesForGroup(entries, group.key).slice().sort(byStartDesc);
   const status = groupStatus(entries, group.key, lang, t, now);
-  const running = group.key === 'sleep' && runningSleep(entries);
+  const running = !!runningEntry(entries, group.key);
   const recent = list.slice(0, 3);
   const older = list.length - recent.length;
 

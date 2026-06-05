@@ -11,7 +11,7 @@ import { groups, type GroupDef } from '../data/activities';
 import { useApp } from '../context/AppContext';
 import { useI18n } from '../i18n';
 import type { Entry, EntryType } from '../lib/types';
-import { runningSleep } from '../lib/entryHelpers';
+import { runningEntry } from '../lib/entryHelpers';
 
 export default function ActivityScreen() {
   const { t } = useI18n();
@@ -22,13 +22,11 @@ export default function ActivityScreen() {
   const [showReminders, setShowReminders] = useState(false);
 
   function handleAdd(group: GroupDef) {
-    // Sleep with a running timer -> reopen that entry to stop it.
-    if (group.key === 'sleep') {
-      const run = runningSleep(entries);
-      if (run) {
-        setSheet({ type: 'sleep', entry: run });
-        return;
-      }
+    // A running timer (sleep / breastfeed / pump) -> reopen that entry to continue or finalize it.
+    const run = runningEntry(entries, group.key);
+    if (run) {
+      setSheet({ type: run.type, entry: run });
+      return;
     }
     if (group.activities.length === 1) {
       setSheet({ type: group.activities[0].type, entry: null });
