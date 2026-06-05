@@ -1,0 +1,14 @@
+{
+  "name": "Nara Baby",
+  "short_name": "Nara Baby",
+  "description": "Track your baby's feeds, sleep, diapers, growth and more.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e2330",
+  "theme_color": "#1e2330",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

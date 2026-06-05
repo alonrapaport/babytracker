@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.DS_Store
+android/app/build
+android/build
+android/.gradle
+android/local.properties
+android/app/release
+*.keystore
+.vite

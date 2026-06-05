@@ -1,0 +1,39 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: #15181f;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  max-width: 520px;
+  margin: 0 auto;
+  position: relative;
+  min-height: 100%;
+}
+
+/* Hide scrollbars for the app-like feel while keeping scroll */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+input,
+button,
+textarea {
+  font-family: inherit;
+}

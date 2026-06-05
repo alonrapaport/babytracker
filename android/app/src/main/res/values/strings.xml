@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nara Baby</string>
+    <string name="title_activity_main">Nara Baby</string>
+    <string name="package_name">com.bat.narababy</string>
+    <string name="custom_url_scheme">com.bat.narababy</string>
+</resources>

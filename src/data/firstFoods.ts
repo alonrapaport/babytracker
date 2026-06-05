@@ -1,0 +1,21 @@
+// A small preloaded list of common first foods. { en, he } pairs.
+export const firstFoods: { en: string; he: string }[] = [
+  { en: 'Avocado', he: 'אבוקדו' },
+  { en: 'Banana', he: 'בננה' },
+  { en: 'Sweet potato', he: 'בטטה' },
+  { en: 'Apple', he: 'תפוח' },
+  { en: 'Pear', he: 'אגס' },
+  { en: 'Carrot', he: 'גזר' },
+  { en: 'Pumpkin', he: 'דלעת' },
+  { en: 'Broccoli', he: 'ברוקולי' },
+  { en: 'Peas', he: 'אפונה' },
+  { en: 'Rice cereal', he: 'דייסת אורז' },
+  { en: 'Oatmeal', he: 'שיבולת שועל' },
+  { en: 'Yogurt', he: 'יוגורט' },
+  { en: 'Egg', he: 'ביצה' },
+  { en: 'Chicken', he: 'עוף' },
+  { en: 'Lentils', he: 'עדשים' },
+  { en: 'Zucchini', he: 'קישוא' },
+  { en: 'Mango', he: 'מנגו' },
+  { en: 'Plum', he: 'שזיף' },
+];
