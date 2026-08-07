@@ -1,0 +1,35 @@
+{
+  "name": "electra-ac-remote",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Electra / AUX air-conditioner remote that transmits real infrared from an Android phone or a network IR bridge.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
+    "bridge": "node bridge/server.mjs",
+    "cap:sync": "npm run build && cap sync android",
+    "cap:open": "cap open android",
+    "android": "npm run build && cap sync android && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}
