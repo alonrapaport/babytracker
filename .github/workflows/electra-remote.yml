@@ -81,6 +81,9 @@ jobs:
             --title "Electra AC Remote — latest debug build" \
             --notes "Unsigned debug build. Tap the .apk below on an Android phone to install; you will need to allow installs from your browser. Rebuilt on every push." \
             || echo "Release already exists, updating its asset."
-          gh release upload electra-remote-latest \
-            app/build/outputs/apk/debug/app-debug.apk#electra-remote.apk \
-            --clobber
+          # Rename before upload: the asset filename is what lands in the
+          # phone's Downloads folder, and "app-debug.apk" says nothing.
+          cp app/build/outputs/apk/debug/app-debug.apk electra-remote.apk
+          gh release upload electra-remote-latest electra-remote.apk --clobber
+          gh release delete-asset electra-remote-latest app-debug.apk --yes \
+            || echo "No legacy asset to remove."
