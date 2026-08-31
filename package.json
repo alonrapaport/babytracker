@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync:edge": "node scripts/sync-edge.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "build:offline": "VITE_DEMO=1 VITE_OFFLINE_FILE=1 vite build && node scripts/build-offline.mjs"
   },
   "dependencies": {
     "@emotion/cache": "^11.13.0",

@@ -71,6 +71,14 @@ list as text instead), no native iOS build (see Capacitor note below).
 > checklist in [`SETUP.md`](SETUP.md) — repo → free GitHub Pages URL →
 > Add to Home Screen, with optional free Supabase sync.
 
+## Try it with zero accounts: one file on your phone
+
+`npm run build:offline` produces **`dist-offline/RecipeBox.html`** — the whole
+app in a single file that opens straight from a phone's storage (send it to
+yourself on WhatsApp/email → open → choose Chrome). No hosting, no logins;
+runs the seeded demo and keeps your changes in that browser. Save the file
+once (e.g. to Downloads) and keep opening that same copy so the data sticks.
+
 ## Try it in 10 seconds (demo mode, no backend)
 
 ```bash
