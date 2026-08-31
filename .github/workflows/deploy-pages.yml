@@ -39,6 +39,10 @@ jobs:
           path: dist
 
   deploy:
+    # Deploy only from the dedicated recipebox repo — while this code lives on
+    # a branch of the babytracker repo, deploying would overwrite that repo's
+    # own GitHub Pages demo.
+    if: github.repository == 'alonrapaport/recipebox'
     needs: build
     runs-on: ubuntu-latest
     environment:
