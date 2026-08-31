@@ -17,6 +17,10 @@ structured data + smart text heuristics), so it needs no API keys.
     Ingredients / Directions), bullets, quantities and servings.
   - **Paste HTML** — paste a page's source; parsed fully client-side (no
     server needed at all).
+  - **From photos & screenshots** — snap a cookbook page or pick screenshots;
+    on-device OCR (tesseract.js WASM, Hebrew + English, no API keys, nothing
+    uploaded) reads the text into the same parser. Printed recipes read well;
+    handwriting is best-effort.
   - **Android share-sheet** — the installed PWA registers as a share target:
     share a post/page → RecipeBox → import screen.
   - **Chrome extension** (`extension/`) — one click lifts the recipe from the
@@ -45,16 +49,21 @@ structured data + smart text heuristics), so it needs no API keys.
   ingredients to the grocery list (the thing ReciMe doesn't do 😉).
 - **Cook mode** — full-screen step-by-step with check-off, an ingredients
   drawer, and a screen wake-lock so the phone stays on with floury hands.
-- **Nutrition** — calories/protein/carbs/fat per serving, imported from the
-  source page when available or entered manually.
+- **Nutrition for every recipe** — imported from the source page when
+  available; otherwise a built-in offline estimator (~120 staple foods, he+en,
+  USDA-style values with densities and unit weights) computes per-serving
+  calories/protein/carbs/fat, clearly labeled משוער/approximate. Imports
+  auto-estimate; a "חישוב ערכים משוער" button does it in the editor.
+- **Watch the original** — recipes imported from YouTube play the source video
+  inline on the recipe page (Instagram/TikTok link out — they block embeds).
 - **Share & backup** — share any recipe as formatted text (Web Share API /
   clipboard); export/import your entire library as JSON.
 - **PWA** — installable on the home screen, offline app shell, Hebrew RTL
   manifest.
 
-**Non-goals** (deliberately): no paywall, no AI extraction (so screenshots/
-handwritten photos aren't auto-read — attach them as recipe photos instead),
-no grocery-delivery ordering, no native iOS build (see Capacitor note below).
+**Non-goals** (deliberately): no paywall, no cloud AI (photo import uses
+classical on-device OCR instead), no grocery-delivery ordering (share the
+list as text instead), no native iOS build (see Capacitor note below).
 
 ## Try it in 10 seconds (demo mode, no backend)
 

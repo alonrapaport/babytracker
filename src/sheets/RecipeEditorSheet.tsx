@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Chip, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, TextField, Typography } from '@mui/material';
+import CalculateRoundedIcon from '@mui/icons-material/CalculateRounded';
 import SheetShell from '../components/SheetShell';
 import PhotoField from '../components/PhotoField';
 import { useTagLabel } from '../components/TagChips';
 import { TAG_GROUPS } from '../data/tags';
 import type { Recipe, RecipeDraft } from '../lib/types';
 import { parseIngredientBlock } from '../lib/parse/ingredient';
+import { estimateNutrition } from '../lib/nutrition';
 import * as db from '../lib/db';
 import { useApp } from '../context/AppContext';
 import { useI18n } from '../i18n';
@@ -60,6 +62,8 @@ export default function RecipeEditorSheet({
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [estimated, setEstimated] = useState(false);
+  const [coverage, setCoverage] = useState<{ matched: number; total: number } | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -67,7 +71,11 @@ export default function RecipeEditorSheet({
     const src = recipe ?? draft;
     setTitle(src?.title === 'Recipe' ? '' : src?.title ?? '');
     setDescription(src?.description ?? '');
-    setPhoto(recipe?.image_path && recipe.image_path.startsWith('data:') ? recipe.image_path : null);
+    setPhoto(
+      recipe?.image_path && recipe.image_path.startsWith('data:')
+        ? recipe.image_path
+        : draft?.photo_data ?? null
+    );
     setServings(src?.servings != null ? String(src.servings) : '');
     setPrep(src?.prep_min != null ? String(src.prep_min) : '');
     setCook(src?.cook_min != null ? String(src.cook_min) : '');
@@ -83,6 +91,8 @@ export default function RecipeEditorSheet({
     setProtein(src?.nutrition?.protein != null ? String(src.nutrition.protein) : '');
     setCarbs(src?.nutrition?.carbs != null ? String(src.nutrition.carbs) : '');
     setFat(src?.nutrition?.fat != null ? String(src.nutrition.fat) : '');
+    setEstimated(src?.nutrition?.estimated ?? false);
+    setCoverage(null);
   }, [open, recipe, draft]);
 
   const toggleTag = (tag: string) => {
@@ -107,7 +117,7 @@ export default function RecipeEditorSheet({
       if (photo) image_path = isDemo ? photo : await db.uploadPhoto(photo);
       const nutrition =
         num(calories) != null || num(protein) != null || num(carbs) != null || num(fat) != null
-          ? { calories: num(calories), protein: num(protein), carbs: num(carbs), fat: num(fat) }
+          ? { calories: num(calories), protein: num(protein), carbs: num(carbs), fat: num(fat), ...(estimated ? { estimated: true } : {}) }
           : null;
       const prepMin = num(prep);
       const cookMin = num(cook);
@@ -250,11 +260,38 @@ export default function RecipeEditorSheet({
             }}
           />
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <TextField label={t('calories')} value={calories} onChange={(e) => setCalories(e.target.value)} type="number" sx={{ flex: 1 }} />
-          <TextField label={t('protein')} value={protein} onChange={(e) => setProtein(e.target.value)} type="number" sx={{ flex: 1 }} />
-          <TextField label={t('carbs')} value={carbs} onChange={(e) => setCarbs(e.target.value)} type="number" sx={{ flex: 1 }} />
-          <TextField label={t('fat')} value={fat} onChange={(e) => setFat(e.target.value)} type="number" sx={{ flex: 1 }} />
+        <Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField label={t('calories')} value={calories} onChange={(e) => { setCalories(e.target.value); setEstimated(false); }} type="number" sx={{ flex: 1 }} />
+            <TextField label={t('protein')} value={protein} onChange={(e) => { setProtein(e.target.value); setEstimated(false); }} type="number" sx={{ flex: 1 }} />
+            <TextField label={t('carbs')} value={carbs} onChange={(e) => { setCarbs(e.target.value); setEstimated(false); }} type="number" sx={{ flex: 1 }} />
+            <TextField label={t('fat')} value={fat} onChange={(e) => { setFat(e.target.value); setEstimated(false); }} type="number" sx={{ flex: 1 }} />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<CalculateRoundedIcon />}
+              onClick={() => {
+                const est = estimateNutrition(parseIngredientBlock(ingText), num(servings));
+                if (!est) return;
+                setCalories(est.nutrition.calories != null ? String(est.nutrition.calories) : '');
+                setProtein(est.nutrition.protein != null ? String(est.nutrition.protein) : '');
+                setCarbs(est.nutrition.carbs != null ? String(est.nutrition.carbs) : '');
+                setFat(est.nutrition.fat != null ? String(est.nutrition.fat) : '');
+                setEstimated(true);
+                setCoverage({ matched: est.matched, total: est.total });
+              }}
+            >
+              {t('estimate_nutrition')}
+            </Button>
+            {estimated ? <Chip size="small" color="warning" variant="outlined" label={t('nutrition_estimated')} /> : null}
+            {coverage ? (
+              <Typography variant="caption" color="text.secondary">
+                {t('nutrition_coverage', { matched: coverage.matched, total: coverage.total })}
+              </Typography>
+            ) : null}
+          </Box>
         </Box>
         <TextField label={t('field_notes')} value={notes} onChange={(e) => setNotes(e.target.value)} multiline minRows={2} inputProps={{ dir: 'auto' }} />
         <TextField label={t('field_source')} value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} dir="ltr" />

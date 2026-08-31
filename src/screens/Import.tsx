@@ -1,17 +1,22 @@
-import { useEffect, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, LinearProgress, Tab, Tabs, TextField, Typography } from '@mui/material';
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
 import AutoFixHighRoundedIcon from '@mui/icons-material/AutoFixHighRounded';
+import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded';
+import DocumentScannerRoundedIcon from '@mui/icons-material/DocumentScannerRounded';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
 import RecipeEditorSheet from '../sheets/RecipeEditorSheet';
+import { fileToDataUrl } from '../components/PhotoField';
 import { importFromHtml, importFromJsonLdPayload, importFromText, importFromUrl, type ImportResult } from '../lib/importClient';
+import { recognizePhotos, type OcrProgress } from '../lib/ocr';
+import { AUTO_ESTIMATE_MIN_COVERAGE, estimateNutrition } from '../lib/nutrition';
 import type { RecipeDraft } from '../lib/types';
 import type { SharedPayload } from '../lib/shareTarget';
 import { useI18n } from '../i18n';
 import { isDemo } from '../lib/demo';
 
-type TabKey = 'url' | 'text' | 'html';
+type TabKey = 'url' | 'text' | 'html' | 'photo';
 
 export default function Import() {
   const { t } = useI18n();
@@ -26,11 +31,23 @@ export default function Import() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
   const [sharedNote, setSharedNote] = useState(false);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handleResult = (result: ImportResult) => {
     if (result.ok) {
+      // ReciMe-style "calories for every recipe": auto-estimate when the
+      // source had no nutrition and we understood enough of the ingredients.
+      const d = result.draft;
+      if (!d.nutrition) {
+        const est = estimateNutrition(d.ingredients, d.servings);
+        if (est && est.coveragePct >= AUTO_ESTIMATE_MIN_COVERAGE) {
+          d.nutrition = { ...est.nutrition, estimated: true };
+        }
+      }
       setError(null);
-      setDraft(result.draft);
+      setDraft(d);
       return;
     }
     if (result.reason === 'unavailable') {
@@ -52,6 +69,31 @@ export default function Import() {
       handleResult(await importFromUrl(value.trim()));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const runOcr = async () => {
+    if (!photoFiles.length || busy) return;
+    setBusy(true);
+    setError(null);
+    setOcrProgress({ photo: 1, totalPhotos: photoFiles.length, pct: 0 });
+    try {
+      const text = await recognizePhotos(photoFiles, setOcrProgress);
+      if (!text || text.replace(/\s/g, '').length < 10) {
+        setError(t('ocr_failed'));
+        return;
+      }
+      const result = importFromText(text);
+      if (result.ok) {
+        result.draft.photo_data = await fileToDataUrl(photoFiles[0]);
+      }
+      setText(text);
+      handleResult(result);
+    } catch {
+      setError(t('ocr_failed'));
+    } finally {
+      setBusy(false);
+      setOcrProgress(null);
     }
   };
 
@@ -90,6 +132,7 @@ export default function Import() {
       <Tabs value={tab} onChange={(_e, v) => setTab(v)} variant="fullWidth" sx={{ px: 1 }}>
         <Tab value="url" label={t('import_tab_url')} />
         <Tab value="text" label={t('import_tab_text')} />
+        <Tab value="photo" label={t('import_tab_photo')} />
         <Tab value="html" label={t('import_tab_html')} />
       </Tabs>
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -141,6 +184,59 @@ export default function Import() {
               onClick={() => handleResult(importFromText(text))}
             >
               {t('import_text_go')}
+            </Button>
+          </>
+        ) : null}
+
+        {tab === 'photo' ? (
+          <>
+            <Typography variant="caption" color="text.secondary">
+              {t('import_photo_hint')}
+            </Typography>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                setPhotoFiles(Array.from(e.target.files ?? []));
+                e.target.value = '';
+              }}
+            />
+            <Button variant="outlined" startIcon={<PhotoCameraRoundedIcon />} onClick={() => photoInputRef.current?.click()}>
+              {t('import_photo_pick')}
+              {photoFiles.length ? ` (${photoFiles.length})` : ''}
+            </Button>
+            {photoFiles.length ? (
+              <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto' }}>
+                {photoFiles.map((f, i) => (
+                  <Box
+                    key={i}
+                    component="img"
+                    src={URL.createObjectURL(f)}
+                    alt=""
+                    sx={{ height: 84, borderRadius: '10px', border: '1px solid', borderColor: 'divider' }}
+                  />
+                ))}
+              </Box>
+            ) : null}
+            {ocrProgress ? (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {t('import_photo_progress', { i: ocrProgress.photo, n: ocrProgress.totalPhotos, pct: ocrProgress.pct })}
+                </Typography>
+                <LinearProgress variant="determinate" value={ocrProgress.pct} sx={{ borderRadius: 2, mt: 0.5 }} />
+              </Box>
+            ) : null}
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={busy ? <CircularProgress size={18} color="inherit" /> : <DocumentScannerRoundedIcon />}
+              disabled={busy || !photoFiles.length}
+              onClick={runOcr}
+            >
+              {t('import_photo_go')}
             </Button>
           </>
         ) : null}

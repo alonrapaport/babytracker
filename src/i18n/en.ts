@@ -90,6 +90,9 @@ const en = {
   carbs: 'Carbs',
   fat: 'Fat',
   grams_short: 'g',
+  estimate_nutrition: 'Estimate nutrition',
+  nutrition_estimated: 'Approximate',
+  nutrition_coverage: 'Based on {matched} of {total} ingredients',
   delete_recipe_confirm: 'Delete this recipe?',
   public_toggle: 'Share to community',
   public_on_hint: 'Visible to everyone in Discover',
@@ -130,6 +133,12 @@ const en = {
   import_html_go: 'Parse HTML',
   import_shared_loaded: 'Shared content loaded — parsing…',
   importing: 'Importing…',
+  import_tab_photo: 'From photo',
+  import_photo_hint: 'Printed recipes and clear screenshots read best; handwriting is best-effort. The text is read on your device — nothing is uploaded (needs internet the first time to fetch the reader).',
+  import_photo_pick: 'Choose photos',
+  import_photo_go: 'Read text from photos',
+  import_photo_progress: 'Reading photo {i} of {n}… {pct}%',
+  ocr_failed: "Couldn't read the photos (the reader downloads on first use — check your connection), or no text was found. Try again or paste the text instead.",
 
   // cookbooks
   cookbooks_title: 'Cookbooks',

@@ -186,6 +186,20 @@ try {
     await page.getByText('400 גרם ספגטי').first().waitFor({ timeout: 8000 });
   });
 
+  await step('auto-estimates nutrition on import (משוער)', async () => {
+    await page.getByText('ערכים תזונתיים', { exact: false }).first().waitFor({ timeout: 5000 });
+    await page.getByText('משוער').first().waitFor({ timeout: 5000 });
+    await page.getByText('קלוריות').first().waitFor({ timeout: 5000 });
+    await snap('nutrition-estimated-he');
+  });
+
+  await step('YouTube source embeds an inline player', async () => {
+    await page.getByLabel('עריכה').click();
+    await page.getByLabel('קישור מקור').fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    await page.getByRole('button', { name: 'שמירה' }).click();
+    await page.locator('iframe[src*="youtube-nocookie"]').waitFor({ timeout: 8000 });
+  });
+
   await step('cook mode: steps, check-off, navigation', async () => {
     await page.getByRole('button', { name: 'מצב בישול' }).click();
     await page.getByText(/שלב 1 מתוך 3/).waitFor({ timeout: 5000 });
@@ -194,6 +208,16 @@ try {
     await page.getByText(/שלב 2 מתוך 3/).waitFor({ timeout: 5000 });
     await page.getByRole('checkbox').first().check();
     await page.getByLabel('סגירה').click();
+  });
+
+  await step('photo (OCR) import tab renders', async () => {
+    await tab('מתכונים').click();
+    await page.getByLabel('הוספה').click();
+    await page.getByText('הדבקת טקסט או HTML').click();
+    await page.getByRole('tab', { name: 'מתמונה' }).click();
+    await page.getByRole('button', { name: 'בחירת תמונות' }).waitFor({ timeout: 5000 });
+    const goDisabled = await page.getByRole('button', { name: 'קריאת הטקסט מהתמונות' }).isDisabled();
+    if (!goDisabled) throw new Error('OCR button should be disabled without photos');
   });
 
   await step('discover: community feed + ingredient search + save copy', async () => {

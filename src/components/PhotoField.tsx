@@ -6,7 +6,7 @@ import DeleteRoundedIcon from '@mui/icons-material/DeleteRounded';
 // Picks an image, downscales it to <=1024px JPEG and hands back a dataURL
 // (kept inline in demo mode; uploaded to Supabase Storage on save otherwise).
 
-async function fileToDataUrl(file: File): Promise<string> {
+export async function fileToDataUrl(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const max = 1024;
   const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));

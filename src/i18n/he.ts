@@ -92,6 +92,9 @@ const he: Dict = {
   carbs: 'פחמימות',
   fat: 'שומן',
   grams_short: 'ג׳',
+  estimate_nutrition: 'חישוב ערכים משוער',
+  nutrition_estimated: 'משוער',
+  nutrition_coverage: 'מבוסס על {matched} מתוך {total} מרכיבים',
   delete_recipe_confirm: 'למחוק את המתכון?',
   public_toggle: 'שיתוף לקהילה',
   public_on_hint: 'מוצג לכולם במסך "גלו"',
@@ -132,6 +135,12 @@ const he: Dict = {
   import_html_go: 'פענוח HTML',
   import_shared_loaded: 'תוכן משותף התקבל — מפענחים…',
   importing: 'מייבא…',
+  import_tab_photo: 'מתמונה',
+  import_photo_hint: 'מתכונים מודפסים וצילומי מסך ברורים נקראים הכי טוב; כתב יד — כמיטב היכולת. הטקסט נקרא במכשיר שלכם — שום דבר לא נשלח לשרת (בפעם הראשונה נדרש אינטרנט להורדת הקורא).',
+  import_photo_pick: 'בחירת תמונות',
+  import_photo_go: 'קריאת הטקסט מהתמונות',
+  import_photo_progress: 'קוראים תמונה {i} מתוך {n}… {pct}%',
+  ocr_failed: 'לא הצלחנו לקרוא את התמונות (הקורא יורד בפעם הראשונה — בדקו את החיבור), או שלא נמצא טקסט. נסו שוב או הדביקו את הטקסט.',
 
   // cookbooks
   cookbooks_title: 'ספרי מתכונים',

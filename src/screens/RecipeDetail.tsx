@@ -39,6 +39,7 @@ import * as db from '../lib/db';
 import { scaleFactor } from '../lib/scale';
 import { formatMinutes } from '../lib/parse/duration';
 import { recipeToShareText, shareText } from '../lib/shareOut';
+import { youtubeEmbedUrl } from '../lib/video';
 import type { UnitSystem } from '../lib/types';
 
 const SOCIAL_HOSTS = ['instagram.com', 'tiktok.com', 'youtube.com', 'youtu.be', 'facebook.com', 'pinterest.'];
@@ -73,6 +74,7 @@ export default function RecipeDetail() {
   }
 
   const isSocial = recipe.source_url && SOCIAL_HOSTS.some((h) => recipe.source_url!.includes(h));
+  const embedUrl = youtubeEmbedUrl(recipe.source_url);
 
   const toggleFavorite = async () => {
     await db.updateRecipe(recipe.id, { favorite: !recipe.favorite });
@@ -205,6 +207,17 @@ export default function RecipeDetail() {
           </Button>
         </Box>
 
+        {embedUrl ? (
+          <Box
+            component="iframe"
+            src={embedUrl}
+            title={t('watch_original')}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            sx={{ width: '100%', aspectRatio: '16 / 9', border: 0, borderRadius: '18px', mb: 2, display: 'block', bgcolor: '#000' }}
+          />
+        ) : null}
+
         {isOwn ? (
           <FormControlLabel
             control={<Switch checked={recipe.is_public} onChange={(_e, v) => togglePublic(v)} />}
@@ -291,9 +304,12 @@ export default function RecipeDetail() {
         {recipe.nutrition ? (
           <>
             <Divider sx={{ my: 2 }} />
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              {t('nutrition_title')}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <Typography variant="h6">{t('nutrition_title')}</Typography>
+              {recipe.nutrition.estimated ? (
+                <Chip size="small" color="warning" variant="outlined" label={t('nutrition_estimated')} />
+              ) : null}
+            </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
               {(
                 [

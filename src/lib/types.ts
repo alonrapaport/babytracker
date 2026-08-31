@@ -30,6 +30,8 @@ export type Nutrition = {
   protein: number | null;
   carbs: number | null;
   fat: number | null;
+  /** true when filled by the offline estimator rather than source/manual */
+  estimated?: boolean;
 };
 
 export type Recipe = {
@@ -63,7 +65,11 @@ export type ImportConfidence = 'high' | 'medium' | 'low';
 export type RecipeDraft = Omit<
   Recipe,
   'id' | 'owner_id' | 'created_at' | 'updated_at' | 'image_path' | 'favorite' | 'is_public'
-> & { confidence: ImportConfidence };
+> & {
+  confidence: ImportConfidence;
+  /** photo captured during import (OCR tab), carried into the editor */
+  photo_data?: string | null;
+};
 
 export type Cookbook = {
   id: string;

@@ -24,7 +24,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
     "stylis": "^4.3.0",
-    "stylis-plugin-rtl": "^2.1.1"
+    "stylis-plugin-rtl": "^2.1.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
