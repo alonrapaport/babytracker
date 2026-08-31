@@ -1,4 +1,12 @@
-name: Deploy demo to GitHub Pages
+name: Deploy to GitHub Pages
+
+# One deployment, two modes:
+# - No Supabase secrets configured  -> builds the offline DEMO (VITE_DEMO=1).
+# - VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY repo secrets set -> builds the
+#   FULL app (accounts + cloud sync). The anon key is public-by-design
+#   (Row-Level Security protects the data), so shipping it in the bundle is
+#   the standard Supabase pattern. Either way, `<site-url>?demo` still opens
+#   the instant offline demo.
 
 on:
   push:
@@ -27,10 +35,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Build demo
+      - name: Build (demo without Supabase secrets, full app with them)
         run: npm run build
         env:
-          VITE_DEMO: '1'
+          VITE_DEMO: ${{ secrets.VITE_SUPABASE_URL == '' && '1' || '0' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
         with:
           enablement: true

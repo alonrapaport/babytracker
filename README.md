@@ -67,6 +67,10 @@ structured data + smart text heuristics), so it needs no API keys.
 classical on-device OCR instead), no grocery-delivery ordering (share the
 list as text instead), no native iOS build (see Capacitor note below).
 
+> **Want it live on your phone in 5 free minutes?** Follow the bilingual
+> checklist in [`SETUP.md`](SETUP.md) — repo → free GitHub Pages URL →
+> Add to Home Screen, with optional free Supabase sync.
+
 ## Try it in 10 seconds (demo mode, no backend)
 
 ```bash
