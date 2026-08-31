@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; min-width: 320px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input { width: 100%; padding: 8px; box-sizing: border-box; }
+    button { margin-top: 10px; padding: 8px 16px; }
+    .hint { color: #666; font-size: 12px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <label for="base">RecipeBox app URL</label>
+  <input id="base" type="url" placeholder="http://localhost:5173/" />
+  <button id="save">Save</button>
+  <p class="hint">Where your RecipeBox runs — local dev server or your deployed site.</p>
+  <script src="options.js"></script>
+</body>
+</html>

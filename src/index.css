@@ -1,0 +1,27 @@
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #fbf7f2;
+  overscroll-behavior-y: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* hide scrollbars but keep scrolling (mobile-app feel) */
+*::-webkit-scrollbar {
+  display: none;
+}
+* {
+  scrollbar-width: none;
+}
+
+img {
+  max-width: 100%;
+}

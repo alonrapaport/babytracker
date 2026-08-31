@@ -1,0 +1,211 @@
+import type { ParsedIngredient } from '../types';
+import { unitFor } from '../../data/units';
+
+const UNICODE_FRACTIONS: Record<string, number> = {
+  '¼': 0.25, '½': 0.5, '¾': 0.75,
+  '⅐': 1 / 7, '⅑': 1 / 9, '⅒': 0.1,
+  '⅓': 1 / 3, '⅔': 2 / 3,
+  '⅕': 0.2, '⅖': 0.4, '⅗': 0.6, '⅘': 0.8,
+  '⅙': 1 / 6, '⅚': 5 / 6,
+  '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
+};
+const FRACTION_CHARS = Object.keys(UNICODE_FRACTIONS).join('');
+
+// Hebrew fraction words that can open a line: "חצי כוס סוכר".
+const HE_COUNT_WORDS: [RegExp, number][] = [
+  [/^שלושת\s+רבעי\s+/, 0.75],
+  [/^שלושה\s+רבעים\s+/, 0.75],
+  [/^שני\s+שליש\s+/, 2 / 3],
+  [/^חצי\s+/, 0.5],
+  [/^רבע\s+/, 0.25],
+  [/^שליש\s+/, 1 / 3],
+  [/^שמינית\s+/, 0.125],
+];
+const EN_COUNT_WORDS: [RegExp, number][] = [
+  [/^half\s+(?:a\s+)?/i, 0.5],
+  [/^a?\s*quarter\s+(?:of\s+a\s+)?/i, 0.25],
+];
+
+/** Parses one numeric token: "1", "1.5", "1,5", "½", "1½", "3/4", "1 1/2". */
+function parseNumberToken(tok: string): number | null {
+  const t = tok.trim();
+  if (!t) return null;
+  // mixed "1 1/2"
+  let m = t.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (m) return Number(m[1]) + Number(m[2]) / Number(m[3]);
+  // simple fraction "1/2"
+  m = t.match(/^(\d+)\/(\d+)$/);
+  if (m) return Number(m[2]) === 0 ? null : Number(m[1]) / Number(m[2]);
+  // number + unicode fraction "1½" / "1 ½"
+  m = t.match(new RegExp(`^(\\d+)\\s*([${FRACTION_CHARS}])$`));
+  if (m) return Number(m[1]) + UNICODE_FRACTIONS[m[2]];
+  // bare unicode fraction
+  if (t.length === 1 && UNICODE_FRACTIONS[t] != null) return UNICODE_FRACTIONS[t];
+  // decimal with comma (European style "1,5")
+  m = t.match(/^(\d+),(\d{1,2})$/);
+  if (m) return Number(`${m[1]}.${m[2]}`);
+  // plain int/decimal
+  m = t.match(/^(\d+(?:\.\d+)?)$/);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+const NUM_TOKEN_RE = new RegExp(
+  `(\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+\\s*[${FRACTION_CHARS}]|[${FRACTION_CHARS}]|\\d+[.,]\\d+|\\d+)`
+);
+
+/** Extracts a leading quantity (incl. ranges) and returns the remainder. */
+export function parseQuantity(input: string): { qty: number | null; qtyMax: number | null; rest: string } {
+  const s = input.trim();
+  for (const [re, val] of [...HE_COUNT_WORDS, ...EN_COUNT_WORDS]) {
+    const m = s.match(re);
+    if (m) return { qty: val, qtyMax: null, rest: s.slice(m[0].length).trim() };
+  }
+  const lead = s.match(new RegExp(`^${NUM_TOKEN_RE.source}`));
+  if (!lead) return { qty: null, qtyMax: null, rest: s };
+  const qty = parseNumberToken(lead[0]);
+  if (qty == null) return { qty: null, qtyMax: null, rest: s };
+  let rest = s.slice(lead[0].length);
+  // range: "1-2", "1 – 2", "1 to 2", "1 עד 2"
+  const rangeSep = rest.match(/^\s*(?:-|–|—|÷|\bto\b|עד)\s*/);
+  if (rangeSep) {
+    const second = rest.slice(rangeSep[0].length).match(new RegExp(`^${NUM_TOKEN_RE.source}`));
+    if (second) {
+      const qtyMax = parseNumberToken(second[0]);
+      if (qtyMax != null && qtyMax > qty) {
+        rest = rest.slice(rangeSep[0].length + second[0].length);
+        return { qty, qtyMax, rest: rest.trim() };
+      }
+    }
+  }
+  return { qty, qtyMax: null, rest: rest.trim() };
+}
+
+/** Strips symbol/emoji bullets (NOT digits — those are quantities here). */
+export function stripSymbolBullet(line: string): string {
+  let s = line.trim();
+  for (;;) {
+    const next = s.replace(
+      /^(?:[-*•·▪◦‣>✓✔✅☑️→⭐🔸🔹🔺🔻👉➡️❇️✳️🫑🥕🍅🧄🧅🥚🧈🥛🍫🍬🌟💫]|[\u{1F300}-\u{1FAFF}]|[☀-➿]|[️‍])+\s*/u,
+      ''
+    );
+    if (next === s) return s;
+    s = next;
+  }
+}
+
+/** Removes "1." / "1)" / "שלב 1:" / "Step 2:" prefixes from step lines. */
+export function stripStepPrefix(line: string): string {
+  let s = stripSymbolBullet(line);
+  s = s.replace(/^(?:step\s*\d+|שלב\s*\d+)\s*[:.\-–]?\s*/i, '');
+  s = s.replace(/^\d+\s*[.)\-–:]\s*/, '');
+  return s.trim();
+}
+
+/** Lowercase + strip punctuation + collapse spaces + naive EN de-plural. */
+export function normalizeName(name: string): string {
+  const cleaned = name
+    .toLowerCase()
+    .replace(/[.,;:!?"'׳״()\[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned
+    .split(' ')
+    .map((w) => (/^[a-z]+$/.test(w) && w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+    .join(' ');
+}
+
+const NOTE_SPLIT_RE = /\s+[-–—]\s+/;
+
+export function parseIngredientLine(rawInput: string): ParsedIngredient {
+  const raw = rawInput.trim();
+  const base: ParsedIngredient = { raw, qty: null, qtyMax: null, unit: null, name: raw, note: null, group: null };
+  if (!raw) return { ...base, name: '' };
+
+  let s = stripSymbolBullet(raw);
+  const { qty, qtyMax, rest } = parseQuantity(s);
+  let name = rest;
+  let note: string | null = null;
+  let unit: string | null = null;
+
+  const addNote = (n: string) => {
+    const t = n.trim();
+    if (!t) return;
+    note = note ? `${note}, ${t}` : t;
+  };
+
+  const takeLeadingParen = () => {
+    const lead = name.match(/^\(([^)]*)\)\s*/);
+    if (lead) {
+      addNote(lead[1]);
+      name = name.slice(lead[0].length);
+    }
+  };
+
+  // leading parenthetical after the qty: "1 (400g) can ..." -> note "400g"
+  takeLeadingParen();
+
+  // unit = first word, if it maps to a known unit
+  const word = name.match(/^([^\s,()]+)\s*/);
+  if (word) {
+    const u = unitFor(word[1]);
+    if (u && (qty != null || u.id === 'pinch')) {
+      unit = u.id;
+      name = name.slice(word[0].length);
+      name = name.replace(/^(?:of|של)\s+/i, '');
+      // "1 cup (240ml) warm water" -> note "240ml"
+      takeLeadingParen();
+    }
+  }
+  const finalQty = qty == null && unit === 'pinch' ? 1 : qty;
+
+  // trailing parenthetical -> note
+  const tail = name.match(/\s*\(([^)]*)\)\s*$/);
+  if (tail && tail.index != null) {
+    addNote(tail[1]);
+    name = name.slice(0, tail.index);
+  }
+
+  // after-comma or " - " -> note ("flour, sifted" / "קמח - מנופה")
+  const comma = name.indexOf(',');
+  if (comma > 0) {
+    addNote(name.slice(comma + 1));
+    name = name.slice(0, comma);
+  } else {
+    const dash = name.split(NOTE_SPLIT_RE);
+    if (dash.length > 1 && dash[0].trim()) {
+      name = dash[0];
+      addNote(dash.slice(1).join(', '));
+    }
+  }
+
+  name = name.trim();
+  if (!name) {
+    // nothing left (e.g. the line was only a quantity) — keep raw as the name
+    return { ...base, name: raw };
+  }
+  if (finalQty == null && unit == null) {
+    // unparsed line: keep everything as the name so nothing is lost
+    return { ...base, name: stripSymbolBullet(raw) || raw, note: null };
+  }
+  return { raw, qty: finalQty, qtyMax, unit, name, note, group: null };
+}
+
+const GROUP_HEADER_RE = /^(?:for the\s+.+|ל[֐-׿][^:]{1,30}|.{1,30})[:：]$/;
+
+/** Splits a multi-line ingredient block, tracking "For the sauce:" groups. */
+export function parseIngredientBlock(text: string): ParsedIngredient[] {
+  const out: ParsedIngredient[] = [];
+  let group: string | null = null;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = stripSymbolBullet(rawLine.trim());
+    if (!line) continue;
+    if (GROUP_HEADER_RE.test(line) && parseQuantity(line).qty == null) {
+      group = line.replace(/[:：]$/, '').trim();
+      continue;
+    }
+    const ing = parseIngredientLine(line);
+    if (ing.name) out.push({ ...ing, group });
+  }
+  return out;
+}
