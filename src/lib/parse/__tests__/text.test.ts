@@ -109,6 +109,49 @@ describe('parseRecipeText — headerless fallback', () => {
   });
 });
 
+describe('parseRecipeText — sectioned caption without an Ingredients header', () => {
+  // the common chef-caption style: section titles instead of "Ingredients:"
+  const CAPTION = `STICKY HONEY 🍯 PUDDINGS & BAHARAT CREAM
+
+my mom's honey cake recipe with an English twist. Save the recipe 🫶
+
+Makes 6 individual puddings
+
+HONEY PUDDINGS:
+150 g all-purpose flour
+1 tsp baking powder
+½ tsp baking soda
+½ tsp cinnamon
+¼ tsp salt
+2 large eggs
+140 g honey
+80 ml neutral oil
+
+BAHARAT CREAM:
+200 ml heavy cream
+2 tbsp honey
+½ tsp baharat
+
+Whisk the dry ingredients, then fold in the wet ones and bake at 175C for 20 minutes.`;
+
+  const draft = parseRecipeText(CAPTION);
+
+  it('captures BOTH sections as grouped ingredients', () => {
+    expect(draft.ingredients.length).toBe(11);
+    expect(draft.ingredients[0].group).toBe('HONEY PUDDINGS');
+    const cream = draft.ingredients.filter((i) => i.group === 'BAHARAT CREAM');
+    expect(cream).toHaveLength(3);
+    expect(cream[0]).toMatchObject({ qty: 200, unit: 'ml' });
+  });
+
+  it('reads "Makes 6" as servings and keeps instructions as steps', () => {
+    expect(draft.servings).toBe(6);
+    expect(draft.title).toContain('STICKY HONEY');
+    expect(draft.steps.some((s) => s.text.includes('bake at 175C'))).toBe(true);
+    expect(draft.steps.some((s) => s.text.includes('heavy cream'))).toBe(false);
+  });
+});
+
 describe('looksLikeIngredient', () => {
   it('accepts qty-leading and unit-leading lines', () => {
     expect(looksLikeIngredient('2 cups flour')).toBe(true);

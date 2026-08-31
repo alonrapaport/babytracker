@@ -38,6 +38,12 @@ export function looksLikeIngredient(rawLine: string): boolean {
   return hadBullet && line.split(/\s+/).length <= 6 && !/[.!?]$/.test(line);
 }
 
+/** Short "SECTION NAME:" lines inside a caption ("HONEY PUDDINGS:", "לרוטב:"). */
+function isInlineGroupHeader(rawLine: string): boolean {
+  const line = stripSymbolBullet(rawLine.trim());
+  return !!line && line.length <= 34 && /[:：]$/.test(line) && parseQuantity(line).qty == null;
+}
+
 function scrapeServings(text: string): number | null {
   const patterns = [
     /(?:serves|serving[s]?|makes|yields?)\s*[:\-]?\s*(\d+)/i,
@@ -109,18 +115,22 @@ export function parseRecipeText(text: string): RecipeDraft {
     ingLines = after.slice(0, split);
     stepLines = after.slice(split);
   } else {
-    // headerless: find the longest contiguous run of ingredient-looking lines
+    // headerless: find the longest contiguous run of ingredient-looking lines.
+    // Short "SECTION:" titles (the common "HONEY PUDDINGS: / SAUCE:" caption
+    // style) don't break the run — parseIngredientBlock turns them into groups.
     let bestStart = -1;
+    let bestEnd = -1;
     let bestLen = 0;
     let start = -1;
     let len = 0;
     lines.forEach((l, i) => {
-      if (l && looksLikeIngredient(l)) {
+      if (l && (looksLikeIngredient(l) || isInlineGroupHeader(l))) {
         if (start === -1) start = i;
         len++;
         if (len > bestLen) {
           bestLen = len;
           bestStart = start;
+          bestEnd = i + 1; // blank lines inside the run occupy extra indices
         }
       } else if (l) {
         start = -1;
@@ -129,8 +139,8 @@ export function parseRecipeText(text: string): RecipeDraft {
     });
     if (bestLen >= 2) {
       preLines = lines.slice(0, bestStart);
-      ingLines = lines.slice(bestStart, bestStart + bestLen);
-      stepLines = lines.slice(bestStart + bestLen);
+      ingLines = lines.slice(bestStart, bestEnd);
+      stepLines = lines.slice(bestEnd);
     } else {
       preLines = lines.slice(0, 1);
       stepLines = lines.slice(1);
