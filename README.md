@@ -9,9 +9,11 @@ structured data + smart text heuristics), so it needs no API keys.
 ## Features
 
 - **Import from anywhere**
-  - **From a URL** — a Supabase Edge Function fetches the page and extracts the
-    schema.org/Recipe markup (JSON-LD + microdata). Works for most recipe
-    sites, Israeli ones included.
+  - **From a URL** — a Supabase Edge Function fetches the page privately and
+    extracts the schema.org/Recipe markup (JSON-LD + microdata). Works for
+    most recipe sites, Israeli ones included. Without Supabase (demo mode,
+    GitHub Pages before setup) it falls back to a public fetch service —
+    only the page address is sent to it — and parses fully client-side.
   - **Paste text** — paste an Instagram/TikTok caption or any recipe text; a
     deterministic parser detects Hebrew/English headers (מצרכים / אופן הכנה /
     Ingredients / Directions), bullets, quantities and servings.

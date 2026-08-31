@@ -15,24 +15,46 @@ export type LibraryExport = {
   plans: MealPlanEntry[];
 };
 
-export function exportLibrary(data: {
+// Inside a Claude artifact the sandbox blocks plain download links; the
+// viewer-mediated `downloads` capability is the sanctioned save path there.
+async function saveViaArtifactRuntime(filename: string, data: string): Promise<boolean> {
+  try {
+    const w = window as unknown as {
+      claude?: { use?: (name: string) => Promise<{ save: (r: { filename: string; data: string }) => Promise<unknown> } | null> };
+    };
+    if (!w.claude?.use) return false;
+    const downloads = await w.claude.use('downloads');
+    if (!downloads) return false;
+    await downloads.save({ filename, data });
+    return true;
+  } catch {
+    return false; // declined or unavailable
+  }
+}
+
+export async function exportLibrary(data: {
   recipes: Recipe[];
   cookbooks: Cookbook[];
   cookbookRecipes: CookbookRecipe[];
   plans: MealPlanEntry[];
-}): void {
+}): Promise<void> {
   const payload: LibraryExport = {
     app: 'recipebox',
     version: 1,
     exported_at: new Date().toISOString(),
     ...data,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const json = JSON.stringify(payload, null, 2);
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const filename = `recipebox-export-${date}.json`;
+
+  if (await saveViaArtifactRuntime(filename, json)) return;
+
+  const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   a.href = url;
-  a.download = `recipebox-export-${date}.json`;
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }

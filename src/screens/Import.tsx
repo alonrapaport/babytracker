@@ -51,7 +51,7 @@ export default function Import() {
       return;
     }
     if (result.reason === 'unavailable') {
-      setError(t('import_url_unavailable_demo'));
+      setError(t('import_url_blocked'));
       setTab('text');
     } else if (result.reason === 'fetch_failed') {
       setError(t('import_url_failed'));
@@ -115,8 +115,7 @@ export default function Import() {
     if (payload.url) {
       setTab('url');
       setUrl(payload.url);
-      if (!isDemo) runUrl(payload.url);
-      else handleResult({ ok: false, reason: 'unavailable' });
+      runUrl(payload.url);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -159,7 +158,7 @@ export default function Import() {
             </Button>
             {isDemo ? (
               <Typography variant="caption" color="text.secondary">
-                {t('import_url_unavailable_demo')}
+                {t('import_url_demo_note')}
               </Typography>
             ) : null}
           </>

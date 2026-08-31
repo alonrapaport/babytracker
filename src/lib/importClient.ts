@@ -9,21 +9,49 @@ export type ImportResult =
   | { ok: true; draft: RecipeDraft }
   | { ok: false; reason: 'unavailable' | 'fetch_failed' | 'no_recipe' };
 
+// Public CORS-friendly fetch services, used only when the private edge
+// function isn't available (demo mode, GitHub Pages before Supabase setup).
+// Only the page ADDRESS is sent to the service, never any account data.
+const PUBLIC_FETCHERS = [
+  (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u: string) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+];
+
+async function fetchPageViaPublicService(url: string): Promise<string | null> {
+  for (const build of PUBLIC_FETCHERS) {
+    try {
+      const res = await fetch(build(url), { signal: AbortSignal.timeout(12000) });
+      if (res.ok) {
+        const html = await res.text();
+        if (html.length > 200) return html;
+      }
+    } catch {
+      // blocked or down — try the next service
+    }
+  }
+  return null;
+}
+
 /**
- * URL import goes through the `import-recipe` Supabase Edge Function (the
- * browser can't fetch cross-origin recipe pages itself). In demo mode or
- * before the function is deployed the UI steers users to the paste tabs.
+ * URL import prefers the private `import-recipe` Supabase Edge Function (the
+ * browser can't fetch cross-origin recipe pages itself). Without it — demo
+ * mode, or a deployment with no Supabase yet — it falls back to a public
+ * fetch service and parses the page client-side.
  */
 export async function importFromUrl(url: string): Promise<ImportResult> {
-  if (isDemo || !isConfigured) return { ok: false, reason: 'unavailable' };
-  try {
-    const { data, error } = await supabase.functions.invoke('import-recipe', { body: { url } });
-    if (error) return { ok: false, reason: 'fetch_failed' };
-    if (data?.ok && data.draft) return { ok: true, draft: data.draft as RecipeDraft };
-    return { ok: false, reason: (data?.reason as 'no_recipe') ?? 'no_recipe' };
-  } catch {
-    return { ok: false, reason: 'fetch_failed' };
+  if (!isDemo && isConfigured) {
+    try {
+      const { data, error } = await supabase.functions.invoke('import-recipe', { body: { url } });
+      if (!error && data?.ok && data.draft) return { ok: true, draft: data.draft as RecipeDraft };
+      if (!error && data?.reason === 'no_recipe') return { ok: false, reason: 'no_recipe' };
+      // function missing or failed — fall through to the public service
+    } catch {
+      // fall through
+    }
   }
+  const html = await fetchPageViaPublicService(url);
+  if (html) return importFromHtml(html, url);
+  return { ok: false, reason: isDemo || !isConfigured ? 'unavailable' : 'fetch_failed' };
 }
 
 /** Client-side page parsing: JSON-LD -> microdata -> visible-text heuristics. */
