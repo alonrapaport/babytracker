@@ -8,7 +8,14 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import AppHeader from '../components/AppHeader';
 import RecipeEditorSheet from '../sheets/RecipeEditorSheet';
 import { fileToDataUrl } from '../components/PhotoField';
-import { importFromHtml, importFromJsonLdPayload, importFromText, importFromUrl, type ImportResult } from '../lib/importClient';
+import {
+  importFromHtml,
+  importFromJsonLdPayload,
+  importFromText,
+  importFromUrl,
+  isSocialPostUrl,
+  type ImportResult,
+} from '../lib/importClient';
 import { recognizePhotos, type OcrProgress } from '../lib/ocr';
 import { AUTO_ESTIMATE_MIN_COVERAGE, estimateNutrition } from '../lib/nutrition';
 import type { RecipeDraft } from '../lib/types';
@@ -34,6 +41,9 @@ export default function Import() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [ocrProgress, setOcrProgress] = useState<OcrProgress | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  // set when a social link was pasted: the caption the user pastes next gets
+  // this link attached as the recipe's source ("watch the original")
+  const [pendingSourceUrl, setPendingSourceUrl] = useState<string | null>(null);
 
   const handleResult = (result: ImportResult) => {
     if (result.ok) {
@@ -62,14 +72,39 @@ export default function Import() {
   };
 
   const runUrl = async (value: string) => {
-    if (!value.trim()) return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    if (isSocialPostUrl(trimmed)) {
+      // login-walled — the recipe is in the caption; steer to paste and keep
+      // the link so the imported recipe still points at the original post
+      setPendingSourceUrl(trimmed);
+      setError(t('import_url_social'));
+      setTab('text');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      handleResult(await importFromUrl(value.trim()));
+      handleResult(await importFromUrl(trimmed));
     } finally {
       setBusy(false);
     }
+  };
+
+  const runText = (value: string, sourceUrl?: string | null) => {
+    const result = importFromText(value);
+    const src = sourceUrl ?? pendingSourceUrl;
+    if (result.ok && src) {
+      result.draft.source_url = src;
+      if (!result.draft.source_name) {
+        try {
+          result.draft.source_name = new URL(src).hostname.replace(/^www\./, '');
+        } catch {
+          // keep whatever the parser found
+        }
+      }
+    }
+    handleResult(result);
   };
 
   const runOcr = async () => {
@@ -109,7 +144,8 @@ export default function Import() {
     if (payload.text && payload.text.length > 60) {
       setTab('text');
       setText(payload.text);
-      handleResult(importFromText(payload.text));
+      if (payload.url) setPendingSourceUrl(payload.url);
+      runText(payload.text, payload.url ?? null);
       return;
     }
     if (payload.url) {
@@ -180,7 +216,7 @@ export default function Import() {
               size="large"
               startIcon={<AutoFixHighRoundedIcon />}
               disabled={!text.trim()}
-              onClick={() => handleResult(importFromText(text))}
+              onClick={() => runText(text)}
             >
               {t('import_text_go')}
             </Button>

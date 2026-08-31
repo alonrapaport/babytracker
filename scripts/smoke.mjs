@@ -210,6 +210,20 @@ try {
     await page.getByLabel('סגירה').click();
   });
 
+  await step('Instagram link steers to caption-paste and keeps the source', async () => {
+    await tab('מתכונים').click();
+    await page.getByLabel('הוספה').click();
+    await page.getByText('ייבוא מקישור').click();
+    await page.getByPlaceholder(/קישור לעמוד מתכון/).fill('https://www.instagram.com/reel/DcmTmA7Sln-/');
+    await page.getByRole('button', { name: 'ייבוא', exact: true }).click();
+    await page.getByText(/בכתובית של הפוסט/).waitFor({ timeout: 5000 });
+    await page.getByPlaceholder(/הדביקו כתובית/).fill('סלט קינואה מהיר\n\nמצרכים:\n1 כוס קינואה\n2 עגבניות\n\nאופן הכנה:\n1. מבשלים את הקינואה.\n2. קוצצים ומערבבים.');
+    await page.getByRole('button', { name: 'פענוח הטקסט' }).click();
+    await page.getByRole('button', { name: 'שמירה' }).click();
+    await page.getByText('1 כוס קינואה').first().waitFor({ timeout: 8000 });
+    await page.getByText('לצפייה במקור').first().waitFor({ timeout: 5000 });
+  });
+
   await step('photo (OCR) import tab renders', async () => {
     await tab('מתכונים').click();
     await page.getByLabel('הוספה').click();

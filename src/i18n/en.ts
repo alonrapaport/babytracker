@@ -125,6 +125,7 @@ const en = {
   import_url_go: 'Import',
   import_url_demo_note: 'In the demo, URL import goes through a public fetch service (only the page address is sent). Recipe sites work; for Instagram/TikTok posts paste the caption instead.',
   import_url_blocked: "Couldn't reach that page from here (network access may be blocked in this preview). Paste the caption or the page HTML — that always works.",
+  import_url_social: "Instagram/TikTok/Facebook links never expose the recipe — it lives in the post's caption (true for every recipe app). Copy the caption from the post and paste it here; the link will be saved as the recipe's source.",
   import_url_failed: "Couldn't fetch that page. Paste the caption or page HTML instead.",
   import_no_recipe: "Couldn't find a recipe on that page. Paste the text instead.",
   import_text_placeholder: 'Paste an Instagram/TikTok caption or any recipe text…',

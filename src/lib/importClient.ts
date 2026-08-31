@@ -9,6 +9,20 @@ export type ImportResult =
   | { ok: true; draft: RecipeDraft }
   | { ok: false; reason: 'unavailable' | 'fetch_failed' | 'no_recipe' };
 
+// Login-walled social hosts: their pages never expose the recipe to any
+// fetcher — the recipe lives in the post's caption. The UI short-circuits
+// these to the paste-text flow (keeping the link as the recipe's source).
+const SOCIAL_POST_HOSTS = ['instagram.com', 'tiktok.com', 'facebook.com', 'fb.watch'];
+
+export function isSocialPostUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return SOCIAL_POST_HOSTS.some((s) => h === s || h.endsWith(`.${s}`));
+  } catch {
+    return false;
+  }
+}
+
 // Public CORS-friendly fetch services, used only when the private edge
 // function isn't available (demo mode, GitHub Pages before Supabase setup).
 // Only the page ADDRESS is sent to the service, never any account data.
